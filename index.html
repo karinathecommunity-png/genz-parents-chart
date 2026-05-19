@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gen Z Parents — Walmart Attribute Quadrant</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e8eaf0; min-height: 100vh; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 600; color: #ffffff; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #8b8fa8; margin-bottom: 20px; }
+  #controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; align-items: center; }
+  select, input { background: #1e2130; border: 1px solid #2e3248; color: #c8cad8; border-radius: 6px; padding: 6px 10px; font-size: 13px; height: 34px; }
+  select:focus, input:focus { outline: none; border-color: #4f6ef7; }
+  #count { font-size: 12px; color: #6b6f88; margin-left: auto; }
+  #stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat { background: #1a1d2e; border: 1px solid #2a2d44; border-radius: 8px; padding: 10px 14px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
+  .stat-num { font-size: 26px; font-weight: 600; }
+  #chart-wrap { position: relative; background: #1a1d2e; border: 1px solid #2a2d44; border-radius: 12px; padding: 16px; }
+  canvas { display: block; }
+  #tooltip { position: fixed; pointer-events: none; background: #1e2130; border: 1px solid #3a3d58; border-radius: 8px; padding: 12px 14px; font-size: 12px; max-width: 250px; z-index: 9999; display: none; line-height: 1.6; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .tt-name { font-size: 13px; font-weight: 600; color: #ffffff; margin-bottom: 2px; }
+  .tt-cat { font-size: 11px; color: #6b6f88; margin-bottom: 6px; }
+  .tt-stats { display: flex; gap: 12px; margin-bottom: 6px; }
+  .tt-stat span { display: block; font-size: 10px; color: #6b6f88; }
+  .tt-stat strong { font-size: 14px; font-weight: 600; }
+  .tt-note { font-size: 11px; color: #9194a8; line-height: 1.5; border-top: 1px solid #2e3248; padding-top: 6px; }
+  #legend { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 14px; }
+  .leg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #8b8fa8; cursor: pointer; transition: color 0.15s; }
+  .leg:hover { color: #e8eaf0; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .leg-count { font-size: 11px; opacity: 0.6; }
+  #click-hint { font-size: 11px; color: #4f5270; margin-top: 8px; }
+  #quadrant-labels { pointer-events: none; }
+</style>
+</head>
+<body>
+
+<h1>Gen Z Parents — Walmart Attribute Quadrant</h1>
+<p class="sub">Persona Attribute Proportion (x) vs. Index vs. base population (y) · Medians define quadrants · Hover to explore · Click to investigate</p>
+
+<div id="stats">
+  <div class="stat"><div class="stat-label" style="color:#4f8cf7;">Key</div><div class="stat-num" id="cnt-key" style="color:#4f8cf7;">32</div></div>
+  <div class="stat"><div class="stat-label" style="color:#f97316;">Unique</div><div class="stat-num" id="cnt-unique" style="color:#f97316;">11</div></div>
+  <div class="stat"><div class="stat-label" style="color:#22c55e;">Table Stakes</div><div class="stat-num" id="cnt-ts" style="color:#22c55e;">7</div></div>
+  <div class="stat"><div class="stat-label" style="color:#6b7280;">Low Signal</div><div class="stat-num" id="cnt-ls" style="color:#6b7280;">5</div></div>
+</div>
+
+<div id="controls">
+  <input type="text" id="search" placeholder="Search attributes…" style="width:200px;" oninput="filter()">
+  <select id="cat-filter" onchange="filter()"><option value="">All categories</option></select>
+  <select id="quad-filter" onchange="filter()">
+    <option value="">All quadrants</option>
+    <option value="Key">Key</option>
+    <option value="Unique">Unique</option>
+    <option value="Table Stakes">Table Stakes</option>
+    <option value="Low Signal">Low Signal</option>
+  </select>
+  <span id="count">55 attributes</span>
+</div>
+
+<div id="chart-wrap">
+  <canvas id="chart" height="520"></canvas>
+  <div id="tooltip">
+    <div class="tt-name" id="tt-name"></div>
+    <div class="tt-cat" id="tt-cat"></div>
+    <div class="tt-stats">
+      <div class="tt-stat"><span>Proportion</span><strong id="tt-prop"></strong></div>
+      <div class="tt-stat"><span>Index</span><strong id="tt-idx"></strong></div>
+      <div class="tt-stat"><span>Quadrant</span><strong id="tt-quad"></strong></div>
+    </div>
+    <div class="tt-note" id="tt-note"></div>
+  </div>
+</div>
+
+<div id="legend">
+  <div class="leg" onclick="toggleQ('Key')"><div class="leg-dot" style="background:#4f8cf7;"></div>Key — core truths at scale <span class="leg-count">(32)</span></div>
+  <div class="leg" onclick="toggleQ('Unique')"><div class="leg-dot" style="background:#f97316;"></div>Unique — targeting differentiators <span class="leg-count">(11)</span></div>
+  <div class="leg" onclick="toggleQ('Table Stakes')"><div class="leg-dot" style="background:#22c55e;"></div>Table Stakes — hygiene <span class="leg-count">(7)</span></div>
+  <div class="leg" onclick="toggleQ('Low Signal')"><div class="leg-dot" style="background:#6b7280;"></div>Low Signal <span class="leg-count">(5)</span></div>
+</div>
+<p id="click-hint">💡 Click any dot to open a deep-dive prompt in Claude</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const ALL = [
+  {n:"Children's Apparel Buyers",cat:"Shopping Behavior",x:0.402,y:373,q:"Key",note:"Core Walmart aisle — signals active family shopping mission"},
+  {n:"Baby Product Buyers",cat:"Shopping Behavior",x:0.336,y:354,q:"Key",note:"High-frequency, high-loyalty Walmart category"},
+  {n:"Children's Toy Buyers",cat:"Shopping Behavior",x:0.361,y:354,q:"Key",note:"Seasonal + year-round Walmart volume driver"},
+  {n:"Walmart Saving Catcher Users",cat:"Walmart Specific",x:0.220,y:350,q:"Key",note:"Direct Walmart loyalty signal — price-sensitive Gen Z parents"},
+  {n:"Family Vacationers",cat:"Lifestyle",x:0.416,y:394,q:"Key",note:"Anchors the family-first identity at high scale"},
+  {n:"New Parents",cat:"Lifestyle",x:0.288,y:432,q:"Key",note:"Core life stage — highest index among parenting signals"},
+  {n:"Expecting Parents",cat:"Lifestyle",x:0.209,y:414,q:"Key",note:"Acquisition moment — brand loyalty forms here"},
+  {n:"Parents of Children 0–2",cat:"Lifestyle",x:0.221,y:412,q:"Key",note:"Highest-need parenting stage; diapers, formula, gear"},
+  {n:"Parents of Toddlers",cat:"Lifestyle",x:0.223,y:400,q:"Key",note:"Active, high-spend household stage"},
+  {n:"School Supply Buyers",cat:"Shopping Behavior",x:0.308,y:255,q:"Key",note:"Back-to-school = Walmart's biggest seasonal moment"},
+  {n:"Grocery Store Shoppers",cat:"Shopping Behavior",x:0.368,y:204,q:"Key",note:"Walmart's primary mission — confirms grocery overlap"},
+  {n:"Dollar Store Shoppers",cat:"Shopping Behavior",x:0.237,y:189,q:"Key",note:"Price sensitivity signal — value-seeking behavior"},
+  {n:"Mass Merchandise Shoppers",cat:"Shopping Behavior",x:0.315,y:204,q:"Key",note:"Confirms Walmart as natural fit for this segment"},
+  {n:"Energy Drink Enthusiasts",cat:"CPG",x:0.225,y:267,q:"Key",note:"Surprising — high index signals Gen Z parenting culture"},
+  {n:"Online Video Gamers",cat:"Entertainment",x:0.250,y:256,q:"Key",note:"Surprising anchor — gaming is a key leisure identity"},
+  {n:"Disney Plus Subscribers",cat:"Entertainment",x:0.270,y:309,q:"Key",note:"Family media — cross-sell signal for Walmart+ entertainment"},
+  {n:"Mobile Gamers",cat:"Entertainment",x:0.234,y:266,q:"Key",note:"Confirms mobile-first behavior; in-app ads relevant"},
+  {n:"TikTok Users",cat:"Social/Digital",x:0.204,y:289,q:"Key",note:"Primary discovery platform for this audience"},
+  {n:"Snapchat Users",cat:"Social/Digital",x:0.331,y:319,q:"Key",note:"Unexpectedly high — native Gen Z platform still active as parents"},
+  {n:"Instagram Users",cat:"Social/Digital",x:0.187,y:218,q:"Key",note:"Visual purchase discovery; connects to beauty + home"},
+  {n:"Buy Online Pick Up In Store",cat:"Shopping Behavior",x:0.223,y:230,q:"Key",note:"Core Walmart+ behavior — convenience-driven fulfillment"},
+  {n:"Coupon / Incentive Seekers",cat:"Shopping Behavior",x:0.321,y:343,q:"Key",note:"Value motivation at scale — price messaging resonates"},
+  {n:"Prepaid Card Owners",cat:"Financial",x:0.293,y:236,q:"Key",note:"Surprising — signals unbanked/underbanked segment within audience"},
+  {n:"Student Loan Customers",cat:"Financial",x:0.436,y:356,q:"Key",note:"Defining financial pressure for Gen Z — budget-conscious buyers"},
+  {n:"Amazon Shoppers",cat:"Shopping Behavior",x:0.302,y:168,q:"Key",note:"Competitive context — dual-retailer behavior is the norm"},
+  {n:"Snack Buyers",cat:"CPG",x:0.310,y:194,q:"Key",note:"High-frequency Walmart grocery basket item"},
+  {n:"Personal Care Buyers",cat:"CPG",x:0.260,y:183,q:"Key",note:"Core Walmart health & beauty category"},
+  {n:"Pet Buyers",cat:"CPG",x:0.225,y:164,q:"Key",note:"Fast-growing Walmart category; pet ownership high in this cohort"},
+  {n:"Home Improvement Buyers",cat:"Shopping Behavior",x:0.278,y:174,q:"Key",note:"Renter-to-owner transition signal — growing basket"},
+  {n:"Vitamin Supplement Brand Switchers",cat:"CPG",x:0.451,y:468,q:"Key",note:"Highest-index signal — health-minded parents open to switching brands"},
+  {n:"Infant Formula Buyers",cat:"CPG",x:0.170,y:339,q:"Key",note:"Critical, high-loyalty Walmart category"},
+  {n:"Baby Shower Gift Buyers",cat:"Shopping Behavior",x:0.310,y:370,q:"Key",note:"Network effect signal — Gen Z parents buying for each other"},
+  {n:"Pets Natural Products Purchasers",cat:"CPG",x:0.058,y:256,q:"Unique",note:"Small but highly distinctive — premium pet care mindset"},
+  {n:"Plant Based Diet Followers",cat:"Health",x:0.111,y:178,q:"Unique",note:"Niche but strong — connects to Walmart's better-for-you push"},
+  {n:"Mental Health App Users",cat:"Health",x:0.114,y:179,q:"Unique",note:"Unexpected — opens door for wellness messaging & Walmart Health"},
+  {n:"Personal Trainer Clients",cat:"Health",x:0.124,y:177,q:"Unique",note:"Aspirational health identity — connects to active apparel"},
+  {n:"Do It Yourselfer",cat:"Lifestyle",x:0.108,y:177,q:"Unique",note:"Surprising Unique — home improvement aisle opportunity"},
+  {n:"Subscription Box Customers",cat:"Shopping Behavior",x:0.110,y:168,q:"Unique",note:"Openness to Walmart+ subscription model"},
+  {n:"Socially Influenced Consumers",cat:"Social/Digital",x:0.131,y:152,q:"Unique",note:"Influencer-responsive — critical for social commerce strategy"},
+  {n:"Buy Online Return In Store",cat:"Shopping Behavior",x:0.129,y:156,q:"Unique",note:"Omnichannel behavior — drives foot traffic from digital"},
+  {n:"Long Road Trip Takers",cat:"Lifestyle",x:0.118,y:173,q:"Unique",note:"Surprising — travel pattern that drives Walmart pit-stop shopping"},
+  {n:"Home Based Business Owners",cat:"Lifestyle",x:0.115,y:155,q:"Unique",note:"Side hustle culture — B2B crossover for Walmart Business"},
+  {n:"Calorie Counters",cat:"Health",x:0.109,y:142,q:"Unique",note:"Health awareness at low scale — better-for-you labeling matters"},
+  {n:"Paycheck to Paycheck Consumers",cat:"Financial",x:0.147,y:121,q:"Table Stakes",note:"Financial reality — value positioning is non-negotiable"},
+  {n:"Healthy Eating Enthusiasts",cat:"Health",x:0.177,y:133,q:"Table Stakes",note:"Hygiene aspiration — expected but not differentiating"},
+  {n:"Debit Card Users",cat:"Financial",x:0.168,y:178,q:"Table Stakes",note:"Default payment mode — expected but pervasive"},
+  {n:"Hard Seltzer Enthusiasts",cat:"CPG",x:0.133,y:138,q:"Table Stakes",note:"Common Gen Z adult beverage preference — expected"},
+  {n:"Pharmacy Customers",cat:"Health",x:0.220,y:123,q:"Table Stakes",note:"High coverage but low distinctiveness — standard basket"},
+  {n:"Over The Counter Drug Buyers",cat:"CPG",x:0.231,y:138,q:"Table Stakes",note:"High-volume Walmart SKU but not a differentiator"},
+  {n:"Grocery Store Loyalty Card",cat:"Shopping Behavior",x:0.188,y:251,q:"Table Stakes",note:"Deal-seeking at scale — price loyalty not brand loyalty"},
+  {n:"Retirees",cat:"Life Stage",x:0.025,y:19,q:"Low Signal",note:"Demographic mismatch — Gen Z parents are not retiring"},
+  {n:"Grandparents",cat:"Life Stage",x:0.043,y:48,q:"Low Signal",note:"Another demographic mismatch — useful as context only"},
+  {n:"Auto Insurance Self Serve Online",cat:"Insurance",x:0.070,y:61,q:"Low Signal",note:"Low scale, low index — insurance vertical not relevant"},
+  {n:"Online Savings Users",cat:"Financial",x:0.067,y:74,q:"Low Signal",note:"Savings behavior underindexes — reinforces paycheck-to-paycheck reality"},
+  {n:"Reverse Mortgage Customers",cat:"Financial",x:0.030,y:15,q:"Low Signal",note:"Clear demographic exclusion — confirms audience age profile"}
+];
+
+const MED_X = 0.133, MED_Y = 140.08;
+const COLORS = {Key:"#4f8cf7",Unique:"#f97316","Table Stakes":"#22c55e","Low Signal":"#6b7280"};
+let hiddenQ = {}, filtered = ALL;
+
+const cats = [...new Set(ALL.map(d=>d.cat))].sort();
+const cs = document.getElementById('cat-filter');
+cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;cs.appendChild(o);});
+
+function buildDS(data){
+  const g={};
+  data.forEach(d=>{if(!g[d.q])g[d.q]=[];g[d.q].push({x:d.x,y:d.y,label:d.n,cat:d.cat,note:d.note,q:d.q});});
+  return Object.entries(g).map(([q,pts])=>({
+    label:q,data:pts,
+    backgroundColor:COLORS[q]+(hiddenQ[q]?'00':'cc'),
+    pointRadius:6,pointHoverRadius:9,borderWidth:0
+  }));
+}
+
+const ctx=document.getElementById('chart').getContext('2d');
+document.getElementById('chart').style.width='100%';
+
+const chart = new Chart(ctx,{
+  type:'scatter',
+  data:{datasets:buildDS(ALL)},
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    animation:{duration:150},
+    plugins:{legend:{display:false},tooltip:{enabled:false}},
+    scales:{
+      x:{min:0,max:0.50,
+        title:{display:true,text:'Persona Attribute Proportion →',color:'#4f5270',font:{size:12}},
+        ticks:{callback:v=>(v*100).toFixed(0)+'%',color:'#4f5270',font:{size:11}},
+        grid:{color:'rgba(255,255,255,0.05)'},
+        border:{color:'rgba(255,255,255,0.1)'}
+      },
+      y:{min:0,max:490,
+        title:{display:true,text:'Index vs. base population →',color:'#4f5270',font:{size:12}},
+        ticks:{color:'#4f5270',font:{size:11}},
+        grid:{color:'rgba(255,255,255,0.05)'},
+        border:{color:'rgba(255,255,255,0.1)'}
+      }
+    }
+  },
+  plugins:[{
+    id:'ql',
+    afterDraw(ch){
+      const {ctx,scales:{x,y}}=ch;
+      const px=x.getPixelForValue(MED_X),py=y.getPixelForValue(MED_Y);
+      ctx.save();
+      ctx.setLineDash([5,4]);ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(px,y.top);ctx.lineTo(px,y.bottom);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x.left,py);ctx.lineTo(x.right,py);ctx.stroke();
+      ctx.setLineDash([]);
+      const labels=[
+        {t:'KEY',lx:px+8,ly:y.top+16,c:'#4f8cf7'},
+        {t:'UNIQUE',lx:x.left+8,ly:y.top+16,c:'#f97316'},
+        {t:'TABLE STAKES',lx:px+8,ly:y.bottom-8,c:'#22c55e'},
+        {t:'LOW SIGNAL',lx:x.left+8,ly:y.bottom-8,c:'rgba(107,114,128,0.8)'}
+      ];
+      ctx.font='600 11px -apple-system,sans-serif';
+      labels.forEach(l=>{ctx.fillStyle=l.c;ctx.fillText(l.t,l.lx,l.ly);});
+      ctx.restore();
+    }
+  }]
+});
+
+function filter(){
+  const s=document.getElementById('search').value.toLowerCase();
+  const cat=document.getElementById('cat-filter').value;
+  const quad=document.getElementById('quad-filter').value;
+  filtered=ALL.filter(d=>{
+    if(s&&!d.n.toLowerCase().includes(s))return false;
+    if(cat&&d.cat!==cat)return false;
+    if(quad&&d.q!==quad)return false;
+    return true;
+  });
+  document.getElementById('count').textContent=filtered.length+' attributes';
+  updateCounts(filtered);
+  chart.data.datasets=buildDS(filtered);
+  chart.update('active');
+}
+
+function toggleQ(q){hiddenQ[q]=!hiddenQ[q];chart.data.datasets=buildDS(filtered);chart.update('active');}
+
+function updateCounts(data){
+  document.getElementById('cnt-key').textContent=data.filter(d=>d.q==='Key').length;
+  document.getElementById('cnt-unique').textContent=data.filter(d=>d.q==='Unique').length;
+  document.getElementById('cnt-ts').textContent=data.filter(d=>d.q==='Table Stakes').length;
+  document.getElementById('cnt-ls').textContent=data.filter(d=>d.q==='Low Signal').length;
+}
+
+const tt=document.getElementById('tooltip');
+const cv=document.getElementById('chart');
+cv.addEventListener('mousemove',e=>{
+  const pts=chart.getElementsAtEventForMode(e,'nearest',{intersect:true},true);
+  if(pts.length){
+    const p=chart.data.datasets[pts[0].datasetIndex].data[pts[0].index];
+    document.getElementById('tt-name').textContent=p.label;
+    document.getElementById('tt-cat').textContent=p.cat;
+    document.getElementById('tt-prop').textContent=(p.x*100).toFixed(1)+'%';
+    document.getElementById('tt-idx').textContent=p.y.toFixed(0);
+    document.getElementById('tt-quad').style.color=COLORS[p.q];
+    document.getElementById('tt-quad').textContent=p.q;
+    document.getElementById('tt-note').textContent=p.note;
+    tt.style.display='block';
+    let lx=e.clientX+16,ly=e.clientY-10;
+    if(lx+260>window.innerWidth)lx=e.clientX-270;
+    tt.style.left=lx+'px';tt.style.top=ly+'px';
+    cv.style.cursor='pointer';
+  } else {tt.style.display='none';cv.style.cursor='default';}
+});
+cv.addEventListener('mouseleave',()=>tt.style.display='none');
+</script>
+</body>
+</html>
